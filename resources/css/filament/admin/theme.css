@@ -1,0 +1,18 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/noto-sans-sinhala';
+@import '@fontsource-variable/noto-sans-tamil';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/* WaveTeam admin brand touches */
+.fi-sidebar {
+    background-image: linear-gradient(180deg, rgb(15 88 162 / 0.04), transparent 40%);
+}
+
+.fi-simple-layout {
+    background:
+        radial-gradient(1200px 600px at 100% 0%, rgb(92 197 200 / 0.10), transparent 60%),
+        radial-gradient(900px 500px at 0% 100%, rgb(15 88 162 / 0.10), transparent 60%);
+}

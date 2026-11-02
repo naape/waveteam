@@ -1,0 +1,78 @@
+{
+  "node_modules/@fontsource-variable/inter/files/inter-cyrillic-ext-wght-normal.woff2": {
+    "file": "assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2",
+    "src": "node_modules/@fontsource-variable/inter/files/inter-cyrillic-ext-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2": {
+    "file": "assets/inter-cyrillic-wght-normal-DqGufNeO.woff2",
+    "src": "node_modules/@fontsource-variable/inter/files/inter-cyrillic-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/inter/files/inter-greek-ext-wght-normal.woff2": {
+    "file": "assets/inter-greek-ext-wght-normal-DlzME5K_.woff2",
+    "src": "node_modules/@fontsource-variable/inter/files/inter-greek-ext-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2": {
+    "file": "assets/inter-greek-wght-normal-CkhJZR-_.woff2",
+    "src": "node_modules/@fontsource-variable/inter/files/inter-greek-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2": {
+    "file": "assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2",
+    "src": "node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2": {
+    "file": "assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+    "src": "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2": {
+    "file": "assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2",
+    "src": "node_modules/@fontsource-variable/inter/files/inter-vietnamese-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/noto-sans-sinhala/files/noto-sans-sinhala-latin-ext-wght-normal.woff2": {
+    "file": "assets/noto-sans-sinhala-latin-ext-wght-normal-De4MSImy.woff2",
+    "src": "node_modules/@fontsource-variable/noto-sans-sinhala/files/noto-sans-sinhala-latin-ext-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/noto-sans-sinhala/files/noto-sans-sinhala-latin-wght-normal.woff2": {
+    "file": "assets/noto-sans-sinhala-latin-wght-normal-BQbWk-7s.woff2",
+    "src": "node_modules/@fontsource-variable/noto-sans-sinhala/files/noto-sans-sinhala-latin-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/noto-sans-sinhala/files/noto-sans-sinhala-sinhala-wght-normal.woff2": {
+    "file": "assets/noto-sans-sinhala-sinhala-wght-normal-Dqt08u3R.woff2",
+    "src": "node_modules/@fontsource-variable/noto-sans-sinhala/files/noto-sans-sinhala-sinhala-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/noto-sans-tamil/files/noto-sans-tamil-latin-ext-wght-normal.woff2": {
+    "file": "assets/noto-sans-tamil-latin-ext-wght-normal-D1TiJAvN.woff2",
+    "src": "node_modules/@fontsource-variable/noto-sans-tamil/files/noto-sans-tamil-latin-ext-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/noto-sans-tamil/files/noto-sans-tamil-latin-wght-normal.woff2": {
+    "file": "assets/noto-sans-tamil-latin-wght-normal-Cd-SWREo.woff2",
+    "src": "node_modules/@fontsource-variable/noto-sans-tamil/files/noto-sans-tamil-latin-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/noto-sans-tamil/files/noto-sans-tamil-tamil-wght-normal.woff2": {
+    "file": "assets/noto-sans-tamil-tamil-wght-normal-iihgzMBi.woff2",
+    "src": "node_modules/@fontsource-variable/noto-sans-tamil/files/noto-sans-tamil-tamil-wght-normal.woff2"
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-BWTep-o6.css",
+    "src": "resources/css/app.css",
+    "isEntry": true,
+    "name": "app",
+    "names": [
+      "app.css"
+    ]
+  },
+  "resources/css/filament/admin/theme.css": {
+    "file": "assets/theme-CqDLOVug.css",
+    "src": "resources/css/filament/admin/theme.css",
+    "isEntry": true,
+    "name": "theme",
+    "names": [
+      "theme.css"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-Buj5iI_6.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  }
+}
