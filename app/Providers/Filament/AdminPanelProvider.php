@@ -35,9 +35,11 @@ class AdminPanelProvider extends PanelProvider
             ->passwordReset()
             // TOTP is mandatory for every staff account: users without it are
             // forced through set-up before any admin page loads.
+            // ADMIN_MFA_REQUIRED=false relaxes this TEMPORARILY: accounts that
+            // already set up an authenticator are still asked for a code.
             ->multiFactorAuthentication(
                 [AppAuthentication::make()->recoverable()],
-                isRequired: true,
+                isRequired: (bool) config('portal.admin_mfa_required', true),
             )
             ->brandName('WaveTeam Admin')
             ->defaultAvatarProvider(\App\Filament\AvatarProviders\InitialsAvatarProvider::class)

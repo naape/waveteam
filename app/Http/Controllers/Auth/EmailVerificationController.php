@@ -13,7 +13,8 @@ class EmailVerificationController extends Controller
 {
     public function notice(Request $request): View|RedirectResponse
     {
-        if ($request->user()->hasVerifiedEmail()) {
+        // Verification switched off (EMAIL_VERIFICATION_REQUIRED=false): go straight in.
+        if ($request->user()->hasVerifiedEmail() || ! config('portal.email_verification_required', true)) {
             return redirect($this->home($request));
         }
 

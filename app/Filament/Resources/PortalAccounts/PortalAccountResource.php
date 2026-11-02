@@ -5,6 +5,8 @@ namespace App\Filament\Resources\PortalAccounts;
 use App\Enums\AccountStatus;
 use App\Enums\UserType;
 use App\Filament\Actions\AccountStatusActions;
+use App\Filament\Actions\PasswordActions;
+use Filament\Actions\ActionGroup;
 use App\Filament\Resources\PortalAccounts\Pages\ListPortalAccounts;
 use App\Models\User;
 use BackedEnum;
@@ -19,8 +21,8 @@ use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 /**
- * Sign-in accounts of applicants and organisation contacts: status only
- * (deactivate / reactivate). Profiles are managed in their own modules.
+ * Sign-in accounts of applicants and organisation contacts: status
+ * (deactivate / reactivate) and passwords. Profiles are managed in their own modules.
  */
 class PortalAccountResource extends Resource
 {
@@ -47,6 +49,18 @@ class PortalAccountResource extends Resource
 
         return match ($record->user_type) {
             UserType::Applicant => $me->can('applicants.change_status'),
+            UserType::OrgContact => $me->can('organizations.manage'),
+            default => false,
+        };
+    }
+
+    /** Who may change this account's password. */
+    public static function canChangePassword(User $record): bool
+    {
+        $me = auth()->user();
+
+        return match ($record->user_type) {
+            UserType::Applicant => $me->can('applicants.update'),
             UserType::OrgContact => $me->can('organizations.manage'),
             default => false,
         };
@@ -99,6 +113,10 @@ class PortalAccountResource extends Resource
             ->recordActions([
                 AccountStatusActions::deactivate(fn (User $r) => static::canManage($r)),
                 AccountStatusActions::reactivate(fn (User $r) => static::canManage($r)),
+                ActionGroup::make([
+                    PasswordActions::set(fn (User $r) => collect([$r]), fn (User $r) => static::canChangePassword($r)),
+                    PasswordActions::resetLink(fn (User $r) => collect([$r]), fn (User $r) => static::canChangePassword($r)),
+                ])->label(__('Password'))->icon(\Filament\Support\Icons\Heroicon::OutlinedKey)->color('gray')->button()->size('sm'),
             ]);
     }
 

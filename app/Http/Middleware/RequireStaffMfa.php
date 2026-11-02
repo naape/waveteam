@@ -17,7 +17,8 @@ class RequireStaffMfa
     {
         $user = $request->user();
 
-        if ($user?->isStaff() && blank($user->getAppAuthenticationSecret())) {
+        // Follows the panel setting (ADMIN_MFA_REQUIRED) so both stay consistent.
+        if (config('portal.admin_mfa_required', true) && $user?->isStaff() && blank($user->getAppAuthenticationSecret())) {
             abort(403, __('Set up two-factor authentication in the admin portal first.'));
         }
 

@@ -17,6 +17,13 @@ return [
 
     'admin_path' => env('ADMIN_PATH', 'admin'),
 
+    // Keep true in production. false = authenticator set-up is optional (temporary use only).
+    'admin_mfa_required' => (bool) env('ADMIN_MFA_REQUIRED', true),
+
+    // Keep true in production. false = applicants and organisations can use the
+    // portal without confirming their email address (temporary use only).
+    'email_verification_required' => (bool) env('EMAIL_VERIFICATION_REQUIRED', true),
+
     // Comma-separated IPs / CIDRs; empty = no restriction.
     'admin_ip_allowlist' => array_filter(array_map('trim', explode(',', (string) env('ADMIN_IP_ALLOWLIST', '')))),
 

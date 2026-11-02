@@ -46,6 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'portal' => EnsureUserType::class,
             'admin.ip' => AdminIpAllowlist::class,
             'staff.mfa' => \App\Http\Middleware\RequireStaffMfa::class,
+            'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
