@@ -25,6 +25,8 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Tables\Filters\TrashedFilter;
 use UnitEnum;
 
 class ServiceRequestResource extends Resource
@@ -47,7 +49,12 @@ class ServiceRequestResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['organization', 'serviceCategory', 'manager', 'district']);
+        $query = parent::getEloquentQuery()->with(['organization', 'serviceCategory', 'manager', 'district']);
+
+        // Only staff who may delete requests can see (and restore) deleted ones.
+        return auth()->user()?->can('service_requests.delete')
+            ? $query->withoutGlobalScopes([SoftDeletingScope::class])
+            : $query;
     }
 
     public static function getNavigationBadge(): ?string
@@ -72,7 +79,8 @@ class ServiceRequestResource extends Resource
                 TextColumn::make('start_date')->date()->placeholder('—')->sortable()->toggleable(),
                 TextColumn::make('manager.name')->label(__('Manager'))->placeholder(__('Unassigned'))->toggleable(),
                 IconColumn::make('requires_police_clearance')->label(__('PCC'))->boolean()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('status')->badge(),
+                TextColumn::make('status')->badge()
+                    ->description(fn (ServiceRequest $r) => $r->trashed() ? __('Deleted') : null),
                 TextColumn::make('created_at')->label(__('Submitted'))->since()->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
@@ -84,6 +92,9 @@ class ServiceRequestResource extends Resource
                 Filter::make('mine')->label(__('Assigned to me'))->query(fn (Builder $query) => $query->where('assigned_manager_id', auth()->id())),
                 Filter::make('open')->label(__('Open only'))->default()
                     ->query(fn (Builder $query) => $query->whereNotIn('status', [ServiceRequestStatus::Completed, ServiceRequestStatus::Cancelled])),
+                TrashedFilter::make()->label(__('Deleted requests'))
+                    ->placeholder(__('Hide deleted'))->trueLabel(__('Show deleted too'))->falseLabel(__('Only deleted'))
+                    ->visible(fn () => auth()->user()?->can('service_requests.delete')),
             ])
             ->recordActions([ViewAction::make()]);
     }

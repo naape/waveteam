@@ -27,8 +27,8 @@ class RolesAndPermissionsSeeder extends Seeder
         'vacancies.manage', 'applications.view', 'applications.manage', 'interviews.manage',
         // Clients & services
         'organizations.view', 'organizations.manage', 'organizations.verify',
-        'service_requests.view', 'service_requests.manage',
-        'quotations.view', 'quotations.manage', 'quotations.approve',
+        'service_requests.view', 'service_requests.manage', 'service_requests.delete',
+        'quotations.view', 'quotations.manage', 'quotations.approve', 'quotations.delete',
         // Workforce
         'workforce.match', 'workforce.assign', 'workforce.override_pcc',
         // Reports

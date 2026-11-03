@@ -54,7 +54,7 @@ class QuotationActions
             $quotation = $draft ?? new Quotation([
                 'service_request_id' => $request->id,
                 'reference' => $this->nextReference(),
-                'version' => $request->quotations()->count() + 1,
+                'version' => $request->quotations()->withTrashed()->count() + 1,
                 'currency' => 'LKR',
                 'prepared_by' => $by->id,
             ]);
@@ -141,10 +141,43 @@ class QuotationActions
         return $quotation;
     }
 
+    /**
+     * Moves a quotation to "Deleted" (soft delete): hidden from staff lists and
+     * the client, PDF and line items kept, restorable. Accepted quotations are
+     * the client's agreement and cannot be deleted.
+     */
+    public function delete(Quotation $quotation, User $by, string $reason): void
+    {
+        if (blank(trim($reason))) {
+            throw ValidationException::withMessages(['reason' => __('A reason is required to delete a quotation.')]);
+        }
+        if ($quotation->status === QuotationStatus::Accepted) {
+            throw ValidationException::withMessages(['reason' => __('Quotation :ref was accepted by the client and cannot be deleted.', ['ref' => $quotation->reference])]);
+        }
+
+        $quotation->delete();
+        Audit::log('quotation.deleted', $quotation, meta: ['reason' => trim($reason), 'reference' => $quotation->reference, 'status' => $quotation->status->value]);
+    }
+
+    public function restore(Quotation $quotation, User $by): void
+    {
+        DB::transaction(function () use ($quotation) {
+            $quotation->restore();
+
+            // Only one quotation per request can be awaiting the client.
+            if ($quotation->status === QuotationStatus::Sent && Quotation::where('service_request_id', $quotation->service_request_id)
+                ->where('status', QuotationStatus::Sent)->whereKeyNot($quotation->id)->exists()) {
+                $quotation->forceFill(['status' => QuotationStatus::Superseded])->save();
+            }
+        });
+
+        Audit::log('quotation.restored', $quotation, meta: ['reference' => $quotation->reference, 'status' => $quotation->status->value]);
+    }
+
     private function nextReference(): string
     {
         $year = now()->year;
-        $last = Quotation::where('reference', 'like', "QT-{$year}-%")->max('reference');
+        $last = Quotation::withTrashed()->where('reference', 'like', "QT-{$year}-%")->max('reference');
 
         return sprintf('QT-%d-%04d', $year, $last ? ((int) substr($last, -4)) + 1 : 1);
     }

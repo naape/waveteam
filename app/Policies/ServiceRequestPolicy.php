@@ -30,6 +30,7 @@ class ServiceRequestPolicy
     {
         $orgId = $user->organizationMembership?->organization_id;
 
-        return $orgId !== null && $orgId === $request->organization_id;
+        // Deleted requests are gone from the client's point of view.
+        return $orgId !== null && $orgId === $request->organization_id && ! $request->trashed();
     }
 }

@@ -26,7 +26,7 @@ class DashboardController extends Controller
             'organization' => $organization,
             'stats' => [
                 'open' => (clone $requests)->whereNotIn('status', $closed)->count(),
-                'quotations' => Quotation::whereHas('serviceRequest', fn ($q) => $q->where('organization_id', $organization->id))
+                'quotations' => Quotation::whereHas('serviceRequest', fn ($q) => $q->withoutTrashed()->where('organization_id', $organization->id))
                     ->where('status', QuotationStatus::Sent)->count(),
                 'active' => (clone $requests)->whereIn('status', [ServiceRequestStatus::TeamAssigned, ServiceRequestStatus::InProgress])->count(),
                 'completed' => (clone $requests)->where('status', ServiceRequestStatus::Completed)->count(),

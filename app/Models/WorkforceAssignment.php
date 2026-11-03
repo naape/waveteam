@@ -25,7 +25,8 @@ class WorkforceAssignment extends Model
 
     public function serviceRequest(): BelongsTo
     {
-        return $this->belongsTo(ServiceRequest::class);
+        // Includes deleted requests, so quotation/assignment history never loses its request.
+        return $this->belongsTo(ServiceRequest::class)->withTrashed();
     }
 
     public function applicantProfile(): BelongsTo

@@ -3,6 +3,7 @@
 namespace App\Actions\Admin;
 
 use App\Actions\ServiceRequests\ChangeServiceRequestStatus;
+use App\Enums\AssignmentStatus;
 use App\Enums\ServiceRequestStatus;
 use App\Models\ServiceRequest;
 use App\Models\ServiceRequestAttachment;
@@ -182,6 +183,37 @@ class StaffRequestActions
     {
         $request->forceFill(['show_team_to_client' => $visible])->save();
         Audit::log('service_request.team_visibility', $request, new: ['show_team_to_client' => $visible]);
+    }
+
+    /** Assignment statuses that mean people are (or are about to be) working on the request. */
+    public const OPEN_ASSIGNMENTS = [AssignmentStatus::Proposed, AssignmentStatus::Confirmed, AssignmentStatus::Active];
+
+    /**
+     * Moves the request to "Deleted" (soft delete). Nothing is erased: quotations,
+     * messages, attachments and history stay and the request can be restored.
+     * Refused while people are proposed/confirmed/active on it.
+     */
+    public function delete(ServiceRequest $request, User $by, string $reason): void
+    {
+        if (blank(trim($reason))) {
+            throw ValidationException::withMessages(['reason' => __('A reason is required to delete a request.')]);
+        }
+
+        $open = $request->assignments()->whereIn('status', self::OPEN_ASSIGNMENTS)->count();
+        if ($open > 0) {
+            throw ValidationException::withMessages(['reason' => trans_choice(
+                '{1} :n person is still proposed, confirmed or active on this request. Release or cancel the assignment first.|[2,*] :n people are still proposed, confirmed or active on this request. Release or cancel their assignments first.',
+                $open, ['n' => $open])]);
+        }
+
+        $request->delete();
+        Audit::log('service_request.deleted', $request, meta: ['reason' => trim($reason), 'reference' => $request->reference, 'status' => $request->status->value]);
+    }
+
+    public function restore(ServiceRequest $request, User $by): void
+    {
+        $request->restore();
+        Audit::log('service_request.restored', $request, meta: ['reference' => $request->reference]);
     }
 
     private function notifyClient(ServiceRequest $request, string $template, array $extra = []): void

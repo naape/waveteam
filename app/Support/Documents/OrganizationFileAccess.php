@@ -34,20 +34,20 @@ class OrganizationFileAccess
         }
 
         if ($att = ServiceRequestAttachment::with('serviceRequest:id,organization_id')->where('stored_file_id', $file->id)->first()) {
-            $client = $att->visible_to_client && $orgId === $att->serviceRequest->organization_id;
+            $client = $att->visible_to_client && $orgId === $att->serviceRequest?->organization_id;
 
             return [$client || $staffCan('service_requests.view'), 'service_request_attachment'];
         }
 
         $messageId = DB::table('service_request_message_files')->where('stored_file_id', $file->id)->value('service_request_message_id');
         if ($messageId && ($message = ServiceRequestMessage::with('serviceRequest:id,organization_id')->find($messageId))) {
-            $client = ! $message->is_internal && $orgId === $message->serviceRequest->organization_id;
+            $client = ! $message->is_internal && $orgId === $message->serviceRequest?->organization_id;
 
             return [$client || $staffCan('service_requests.view'), 'message_attachment'];
         }
 
-        if ($quote = Quotation::with('serviceRequest:id,organization_id')->where('pdf_file_id', $file->id)->first()) {
-            $client = $quote->status !== QuotationStatus::Draft && $orgId === $quote->serviceRequest->organization_id;
+        if ($quote = Quotation::withTrashed()->with('serviceRequest:id,organization_id,deleted_at')->where('pdf_file_id', $file->id)->first()) {
+            $client = $quote->status !== QuotationStatus::Draft && ! $quote->trashed() && ! $quote->serviceRequest?->trashed() && $orgId === $quote->serviceRequest?->organization_id;
 
             return [$client || $staffCan('quotations.view'), 'quotation_pdf'];
         }

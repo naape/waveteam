@@ -9,6 +9,7 @@ use App\Enums\ServiceRequestStatus;
 use App\Filament\Resources\Quotations\QuotationForm;
 use App\Filament\Resources\ServiceRequests\ServiceRequestResource;
 use App\Models\District;
+use App\Models\Quotation;
 use App\Models\ServiceCategory;
 use App\Models\ServiceRequest;
 use App\Models\Skill;
@@ -26,6 +27,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Validation\ValidationException;
 
 class ViewServiceRequest extends ViewRecord
 {
@@ -58,6 +60,10 @@ class ViewServiceRequest extends ViewRecord
         $r = $this->record;
         $draft = $r->quotations()->where('status', QuotationStatus::Draft)->latest()->first();
         $maxKb = (int) Settings::get('uploads.max_kb');
+
+        if ($r->trashed()) {
+            return [$this->restoreAction()];
+        }
 
         return [
             $this->editDetailsAction($r),
@@ -147,8 +153,76 @@ class ViewServiceRequest extends ViewRecord
                         $this->actions()->setTeamVisibility($r, ! $r->show_team_to_client, auth()->user());
                         Notification::make()->title(__('Team visibility updated'))->success()->send();
                     }),
+                $this->deleteQuotationAction(),
+                $this->deleteAction(),
             ])->label(__('More'))->button()->color('gray'),
         ];
+    }
+
+    public function getSubheading(): ?string
+    {
+        return $this->record->trashed()
+            ? __('Deleted :when — hidden from staff lists and from the client. Restore it to work on it again.', ['when' => $this->record->deleted_at->format('j M Y H:i')])
+            : null;
+    }
+
+    public function deleteAction(): Action
+    {
+        return Action::make('delete')->label(__('Delete request'))->icon(Heroicon::OutlinedTrash)->color('danger')
+            ->visible(fn () => $this->can('service_requests.delete') && ! $this->record->trashed())
+            ->modalHeading(fn () => __('Delete request :ref?', ['ref' => $this->record->reference]))
+            ->modalDescription(__('The request disappears from the staff lists and from the client’s portal. Quotations, messages, attachments and history are kept, and it can be restored from “Deleted requests”. Requests with people proposed, confirmed or active on them cannot be deleted.'))
+            ->modalSubmitActionLabel(__('Delete'))
+            ->schema([Textarea::make('reason')->label(__('Reason (kept in the audit log)'))->required()->rows(3)->maxLength(1000)])
+            ->action(function (array $data, Action $action) {
+                try {
+                    $this->actions()->delete($this->record, auth()->user(), $data['reason']);
+                } catch (ValidationException $e) {
+                    Notification::make()->title(__('This request cannot be deleted yet'))->body(collect($e->errors())->flatten()->first())->danger()->persistent()->send();
+                    $action->halt();
+                }
+                Notification::make()->title(__(':ref deleted', ['ref' => $this->record->reference]))->success()->send();
+                $this->redirect(ServiceRequestResource::getUrl('index'));
+            });
+    }
+
+    public function deleteQuotationAction(): Action
+    {
+        $options = fn () => $this->record->quotations()->where('status', '!=', QuotationStatus::Accepted)->latest()->get()
+            ->mapWithKeys(fn (Quotation $q) => [$q->id => $q->reference.' · v'.$q->version.' · '.$q->status->getLabel().' · LKR '.number_format((float) $q->total, 2)])->all();
+
+        return Action::make('deleteQuotation')->label(__('Delete a quotation'))->icon(Heroicon::OutlinedDocumentMinus)->color('danger')
+            ->visible(fn () => $this->can('quotations.delete') && $options() !== [])
+            ->modalDescription(__('The quotation disappears from this request and from the client’s portal. Its PDF and line items are kept, and it can be restored from Quotations → “Deleted quotations”. Accepted quotations cannot be deleted.'))
+            ->modalSubmitActionLabel(__('Delete'))
+            ->schema([
+                Select::make('quotation')->label(__('Quotation'))->options($options)->required(),
+                Textarea::make('reason')->label(__('Reason (kept in the audit log)'))->required()->rows(3)->maxLength(1000),
+            ])
+            ->action(function (array $data, Action $action) {
+                $q = $this->record->quotations()->findOrFail($data['quotation']);
+                try {
+                    app(QuotationActions::class)->delete($q, auth()->user(), $data['reason']);
+                } catch (ValidationException $e) {
+                    Notification::make()->title(__('This quotation cannot be deleted'))->body(collect($e->errors())->flatten()->first())->danger()->send();
+                    $action->halt();
+                }
+                Notification::make()->title(__(':ref deleted', ['ref' => $q->reference]))->success()->send();
+                $this->redirect(ServiceRequestResource::getUrl('view', ['record' => $this->record]));
+            });
+    }
+
+    public function restoreAction(): Action
+    {
+        return Action::make('restore')->label(__('Restore request'))->icon(Heroicon::OutlinedArrowUturnLeft)->color('success')
+            ->visible(fn () => $this->can('service_requests.delete') && $this->record->trashed())
+            ->requiresConfirmation()
+            ->modalDescription(__('The request returns to the staff lists and to the client’s portal with its previous status.'))
+            ->action(function () {
+                $this->actions()->restore($this->record, auth()->user());
+                Notification::make()->title(__(':ref restored', ['ref' => $this->record->reference]))->success()->send();
+                $this->redirect(ServiceRequestResource::getUrl('view', ['record' => $this->record]));
+            });
     }
 
     private function editDetailsAction(ServiceRequest $r): Action

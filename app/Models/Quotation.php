@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Quotation extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $guarded = ['id', 'status', 'approved_by', 'responded_by', 'responded_at'];
 
@@ -29,7 +30,8 @@ class Quotation extends Model
 
     public function serviceRequest(): BelongsTo
     {
-        return $this->belongsTo(ServiceRequest::class);
+        // Includes deleted requests, so quotation/assignment history never loses its request.
+        return $this->belongsTo(ServiceRequest::class)->withTrashed();
     }
 
     public function items(): HasMany

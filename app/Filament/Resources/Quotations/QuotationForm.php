@@ -73,7 +73,7 @@ class QuotationForm
     public static function sendAction(string $name = 'send'): Action
     {
         return Action::make($name)->label(__('Approve & send'))->icon(Heroicon::OutlinedPaperAirplane)->color('success')
-            ->visible(fn (Quotation $record) => $record->status === QuotationStatus::Draft && auth()->user()->can('quotations.approve'))
+            ->visible(fn (Quotation $record) => ! $record->trashed() && $record->status === QuotationStatus::Draft && auth()->user()->can('quotations.approve'))
             ->requiresConfirmation()
             ->modalHeading(fn (Quotation $record) => __('Send :ref to the client?', ['ref' => $record->reference]))
             ->modalDescription(fn (Quotation $record) => __('A PDF will be generated and the client notified. Total: LKR :t. Earlier sent versions will be superseded.', ['t' => number_format($record->total, 2)]))
@@ -86,7 +86,7 @@ class QuotationForm
     public static function editAction(string $name = 'editDraft'): Action
     {
         return Action::make($name)->label(__('Edit draft'))->icon(Heroicon::OutlinedPencilSquare)
-            ->visible(fn (Quotation $record) => $record->status === QuotationStatus::Draft && auth()->user()->can('quotations.manage'))
+            ->visible(fn (Quotation $record) => ! $record->trashed() && $record->status === QuotationStatus::Draft && auth()->user()->can('quotations.manage'))
             ->modalWidth('5xl')
             ->fillForm(fn (Quotation $record) => self::fill($record))
             ->schema(self::schema())
