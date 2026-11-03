@@ -94,6 +94,90 @@ class StaffRequestActions
         Audit::log('service_request.manager_assigned', $request, ['assigned_manager_id' => $old], ['assigned_manager_id' => $manager?->id]);
     }
 
+    /** Request fields staff may correct after submission. */
+    public const EDITABLE = [
+        'service_category_id', 'title', 'description', 'required_headcount', 'required_qualifications',
+        'required_experience_years', 'district_id', 'location_text', 'start_date', 'expected_duration_value',
+        'expected_duration_unit', 'working_hours', 'special_requirements', 'requires_police_clearance', 'budget_amount',
+    ];
+
+    /**
+     * Corrects the request details. Every change is audited with the reason;
+     * optionally the client is told through the request conversation.
+     *
+     * @param  array<string, mixed>  $data  validated form data (+ 'skills' => int[])
+     * @return list<string>  the fields that changed
+     */
+    public function updateDetails(ServiceRequest $request, array $data, User $by, string $reason, bool $tellClient = false): array
+    {
+        if ($request->status->isClosed()) {
+            throw ValidationException::withMessages(['title' => __('Completed or cancelled requests cannot be edited.')]);
+        }
+
+        $data['expected_duration_unit'] = filled($data['expected_duration_value'] ?? null) ? ($data['expected_duration_unit'] ?? null) : null;
+        $data['required_experience_years'] = $data['required_experience_years'] ?? 0;
+
+        $before = $request->only(self::EDITABLE) + ['skills' => $request->skills()->pluck('skills.id')->sort()->values()->all()];
+
+        DB::transaction(function () use ($request, $data) {
+            $request->fill(array_intersect_key($data, array_flip(self::EDITABLE)))->save();
+
+            if (array_key_exists('skills', $data)) {
+                // Keep each kept skill's minimum years; new skills start at 0.
+                $existing = $request->skills()->pluck('service_request_skills.min_years', 'skills.id');
+                $request->skills()->sync(collect($data['skills'] ?? [])->mapWithKeys(fn ($id) => [(int) $id => ['min_years' => $existing[(int) $id] ?? 0]])->all());
+            }
+        });
+
+        $request->refresh();
+        $after = $request->only(self::EDITABLE) + ['skills' => $request->skills()->pluck('skills.id')->sort()->values()->all()];
+        $changed = array_keys(array_filter($after, fn ($v, $k) => $this->normalise($before[$k] ?? null) !== $this->normalise($v), ARRAY_FILTER_USE_BOTH));
+
+        if (! $changed) {
+            return [];
+        }
+
+        Audit::log('service_request.details_updated', $request,
+            array_intersect_key($before, array_flip($changed)), array_intersect_key($after, array_flip($changed)),
+            ['reason' => $reason, 'fields' => $changed, 'client_told' => $tellClient]);
+
+        if ($tellClient) {
+            $labels = collect($changed)->map(fn ($f) => self::fieldLabel($f))->implode(', ');
+            $this->postMessage($request, $by, __("We have updated the details of your request (:fields).\n\n:reason", ['fields' => $labels, 'reason' => $reason]), internal: false);
+        }
+
+        return $changed;
+    }
+
+    public static function fieldLabel(string $field): string
+    {
+        return match ($field) {
+            'service_category_id' => __('service type'),
+            'required_headcount' => __('number of people'),
+            'required_qualifications' => __('qualifications'),
+            'required_experience_years' => __('experience'),
+            'district_id' => __('district'),
+            'location_text' => __('location'),
+            'start_date' => __('start date'),
+            'expected_duration_value', 'expected_duration_unit' => __('duration'),
+            'requires_police_clearance' => __('police clearance requirement'),
+            'budget_amount' => __('budget'),
+            default => __(str_replace('_', ' ', $field)),
+        };
+    }
+
+    private function normalise(mixed $v): mixed
+    {
+        return match (true) {
+            $v instanceof \DateTimeInterface => $v->format('Y-m-d'),
+            is_bool($v) => $v ? '1' : '0',
+            is_array($v) => implode(',', $v),
+            $v === null || $v === '' => null,
+            is_numeric($v) => (string) (0 + $v),
+            default => (string) $v,
+        };
+    }
+
     public function setTeamVisibility(ServiceRequest $request, bool $visible, User $by): void
     {
         $request->forceFill(['show_team_to_client' => $visible])->save();

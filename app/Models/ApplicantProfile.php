@@ -206,7 +206,8 @@ class ApplicantProfile extends Model
             PoliceClearanceStatus::Expired => $query->whereHas('currentPoliceClearance', fn ($q) => $approved($q)->whereRaw("{$due} < ?", [$today])),
             PoliceClearanceStatus::PendingVerification => $query->whereHas('policeClearanceRecords', fn ($q) => $q->where('verification_status', 'pending_verification')->whereNull('superseded_at')),
             PoliceClearanceStatus::Rejected => $query->whereNull('current_police_clearance_id')->whereHas('policeClearanceRecords', fn ($q) => $q->where('verification_status', 'rejected')->whereNull('superseded_at')),
-            PoliceClearanceStatus::Missing => $query->whereDoesntHave('policeClearanceRecords'),
+            // Replaced/removed records don't count (mirrors policeClearanceStatus()).
+            PoliceClearanceStatus::Missing => $query->whereDoesntHave('policeClearanceRecords', fn ($q) => $q->whereNull('superseded_at')),
         };
     }
 

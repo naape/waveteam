@@ -8,11 +8,15 @@ use App\Enums\QuotationStatus;
 use App\Enums\ServiceRequestStatus;
 use App\Filament\Resources\Quotations\QuotationForm;
 use App\Filament\Resources\ServiceRequests\ServiceRequestResource;
+use App\Models\District;
+use App\Models\ServiceCategory;
 use App\Models\ServiceRequest;
+use App\Models\Skill;
 use App\Models\User;
 use App\Support\Settings;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -20,6 +24,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Section;
 use Filament\Support\Icons\Heroicon;
 
 class ViewServiceRequest extends ViewRecord
@@ -55,6 +60,8 @@ class ViewServiceRequest extends ViewRecord
         $maxKb = (int) Settings::get('uploads.max_kb');
 
         return [
+            $this->editDetailsAction($r),
+
             Action::make('matches')->label(__('Find workforce'))->icon(Heroicon::OutlinedUserGroup)->color('success')
                 ->visible(fn () => $this->can('workforce.match') && ! $r->status->isClosed())
                 ->url(ServiceRequestResource::getUrl('matches', ['record' => $r])),
@@ -142,5 +149,58 @@ class ViewServiceRequest extends ViewRecord
                     }),
             ])->label(__('More'))->button()->color('gray'),
         ];
+    }
+
+    private function editDetailsAction(ServiceRequest $r): Action
+    {
+        return Action::make('editDetails')->label(__('Edit details'))->icon(Heroicon::OutlinedPencilSquare)->color('gray')
+            ->visible(fn () => $this->can('service_requests.manage') && ! $r->status->isClosed())
+            ->modalHeading(__('Edit request :ref', ['ref' => $r->reference]))
+            ->modalWidth('4xl')
+            ->fillForm(fn () => [
+                ...$r->only(StaffRequestActions::EDITABLE),
+                'start_date' => $r->start_date?->toDateString(),
+                'skills' => $r->skills->pluck('id')->all(),
+                'tell_client' => true,
+            ])
+            ->schema([
+                Section::make(__('Request'))->columns(2)->schema([
+                    Select::make('service_category_id')->label(__('Service type'))->required()
+                        ->options(fn () => ServiceCategory::query()->where('is_active', true)->orWhere('id', $r->service_category_id)->orderBy('name')->pluck('name', 'id')),
+                    TextInput::make('required_headcount')->label(__('Number of people'))->required()->integer()->minValue(1)->maxValue(500),
+                    TextInput::make('title')->required()->minLength(5)->maxLength(200)->columnSpanFull(),
+                    Textarea::make('description')->required()->minLength(20)->maxLength(10000)->rows(5)->columnSpanFull(),
+                ]),
+                Section::make(__('Workforce requirements'))->columns(2)->schema([
+                    Select::make('skills')->multiple()->searchable()->maxItems(30)
+                        ->options(fn () => Skill::query()->where('is_active', true)->orWhereIn('id', $r->skills->pluck('id'))->orderBy('name')->pluck('name', 'id'))
+                        ->columnSpanFull(),
+                    TextInput::make('required_experience_years')->label(__('Minimum experience (years)'))->numeric()->minValue(0)->maxValue(40),
+                    Toggle::make('requires_police_clearance')->label(__('Valid police clearance required'))->inline(false),
+                    Textarea::make('required_qualifications')->label(__('Qualifications'))->maxLength(2000)->rows(2)->columnSpanFull(),
+                ]),
+                Section::make(__('Location & schedule'))->columns(3)->schema([
+                    Select::make('district_id')->label(__('District'))->required()->searchable()
+                        ->options(fn () => District::orderBy('name_en')->pluck('name_en', 'id')),
+                    TextInput::make('location_text')->label(__('Site / location'))->required()->maxLength(255)->columnSpan(2),
+                    DatePicker::make('start_date')->label(__('Start date')),
+                    TextInput::make('expected_duration_value')->label(__('Duration'))->integer()->minValue(1)->maxValue(999),
+                    Select::make('expected_duration_unit')->label(__('Unit'))
+                        ->options(['days' => __('days'), 'weeks' => __('weeks'), 'months' => __('months')])
+                        ->requiredWith('expected_duration_value'),
+                    TextInput::make('working_hours')->maxLength(150),
+                    TextInput::make('budget_amount')->label(__('Budget (LKR)'))->numeric()->minValue(0)->maxValue(9999999999),
+                    Textarea::make('special_requirements')->maxLength(5000)->rows(2)->columnSpanFull(),
+                ]),
+                Textarea::make('reason')->label(__('Reason for the change (audit log)'))->required()->maxLength(1000),
+                Toggle::make('tell_client')->label(__('Tell the client (posts the reason in the request conversation and emails them)')),
+            ])
+            ->action(function (array $data) use ($r) {
+                $changed = $this->actions()->updateDetails($r, $data, auth()->user(), $data['reason'], (bool) ($data['tell_client'] ?? false));
+                $this->record->refresh()->load(['organization', 'submitter', 'serviceCategory', 'district', 'manager', 'skills', 'attachments.file', 'statusHistory.changer']);
+                $changed
+                    ? Notification::make()->title(__('Request updated'))->body(collect($changed)->map(fn ($f) => StaffRequestActions::fieldLabel($f))->unique()->implode(', '))->success()->send()
+                    : Notification::make()->title(__('Nothing changed'))->info()->send();
+            });
     }
 }

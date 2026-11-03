@@ -147,35 +147,8 @@ class ApplicantResource extends Resource
                         TextEntry::make('pivot.years')->hiddenLabel()->suffix(' '.__('yrs')),
                         TextEntry::make('pivot.level')->hiddenLabel()->badge()->color('gray'),
                     ])->placeholder(__('None')),
-                    RepeatableEntry::make('educations')->label(__('Education'))->columns(4)->schema([
-                        TextEntry::make('qualification')->hiddenLabel()->weight('medium'),
-                        TextEntry::make('institution')->hiddenLabel(),
-                        TextEntry::make('year_completed')->hiddenLabel()->placeholder('—'),
-                        TextEntry::make('result_grade')->hiddenLabel()->placeholder('—'),
-                    ])->placeholder(__('None')),
-                    RepeatableEntry::make('certifications')->label(__('Certifications & training'))->columns(4)->schema([
-                        TextEntry::make('title')->hiddenLabel()->weight('medium'),
-                        TextEntry::make('kind')->hiddenLabel()->badge()->color('gray'),
-                        TextEntry::make('issuing_body')->hiddenLabel()->placeholder('—'),
-                        TextEntry::make('expires_on')->hiddenLabel()->date()->placeholder(__('No expiry')),
-                    ])->placeholder(__('None')),
-                    RepeatableEntry::make('employments')->label(__('Employment history'))->columns(3)->schema([
-                        TextEntry::make('designation')->hiddenLabel()->weight('medium'),
-                        TextEntry::make('employer')->hiddenLabel(),
-                        TextEntry::make('period')->hiddenLabel()->state(fn ($record) => ($record->start_date?->format('M Y') ?? '?').' – '.($record->is_current ? __('Present') : ($record->end_date?->format('M Y') ?? '?'))),
-                    ])->placeholder(__('None')),
-                    Grid::make(3)->schema([
-                        RepeatableEntry::make('languages')->schema([
-                            TextEntry::make('language')->hiddenLabel()->state(fn ($record) => "{$record->language} — S:{$record->speak} R:{$record->read} W:{$record->write}"),
-                        ])->placeholder(__('None')),
-                        RepeatableEntry::make('drivingLicences')->label(__('Driving licences'))->schema([
-                            TextEntry::make('vehicle_classes')->hiddenLabel()->badge()->color('gray'),
-                            TextEntry::make('expires_on')->hiddenLabel()->date()->prefix(__('Expires ')),
-                        ])->placeholder(__('None')),
-                        RepeatableEntry::make('militaryServices')->label(__('Military service'))->schema([
-                            TextEntry::make('branch')->hiddenLabel()->state(fn ($record) => trim($record->branch.' '.($record->rank ? '· '.$record->rank : ''))),
-                        ])->placeholder(__('None')),
-                    ]),
+                    TextEntry::make('sections_hint')->hiddenLabel()->columnSpanFull()->color('gray')
+                        ->state(__('Education, certifications, employment, languages, driving licences and military service are listed below the tabs.')),
                 ]),
 
                 Tab::make(__('Documents'))->icon(Heroicon::OutlinedFolder)->schema([
@@ -200,7 +173,11 @@ class ApplicantResource extends Resource
                         TextEntry::make('uploaded_at')->label(__('Uploaded'))->date(),
                         TextEntry::make('status')->label(__('Status'))->badge()->state(fn ($record) => $record->displayStatus()),
                         TextEntry::make('valid_until')->label(__('Valid until'))->state(fn ($record) => $record->renewalDate())->date()->placeholder('—'),
-                        TextEntry::make('superseded_at')->label(__('Replaced'))->date()->placeholder('—'),
+                        TextEntry::make('superseded_at')->label(__('Replaced / removed'))
+                            ->state(fn ($record) => $record->removed_at ? __('Removed :d', ['d' => $record->removed_at->format('j M Y')]) : $record->superseded_at?->format('j M Y'))
+                            ->color(fn ($record) => $record->removed_at ? 'danger' : null)
+                            ->helperText(fn ($record) => $record->removal_reason)
+                            ->placeholder('—'),
                     ])->placeholder(__('No certificates uploaded')),
                 ]),
 
@@ -213,6 +190,18 @@ class ApplicantResource extends Resource
                 ]),
             ]),
         ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\EducationRelationManager::class,
+            RelationManagers\CertificationsRelationManager::class,
+            RelationManagers\EmploymentRelationManager::class,
+            RelationManagers\LanguagesRelationManager::class,
+            RelationManagers\DrivingLicencesRelationManager::class,
+            RelationManagers\MilitaryServiceRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

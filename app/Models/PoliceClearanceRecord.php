@@ -35,6 +35,7 @@ class PoliceClearanceRecord extends Model
             'next_renewal_due' => 'date',
             'verified_at' => 'datetime',
             'superseded_at' => 'datetime',
+            'removed_at' => 'datetime',
         ];
     }
 

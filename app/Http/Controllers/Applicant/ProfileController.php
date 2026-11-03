@@ -161,20 +161,7 @@ class ProfileController extends Controller
 
     private function normalize(array $definition, array $data): array
     {
-        foreach ($definition['fields'] as $name => $field) {
-            if ($field['type'] === 'checkbox') {
-                $data[$name] = (bool) ($data[$name] ?? false);
-            }
-            if ($field['type'] === 'checkboxes') {
-                $data[$name] = array_values($data[$name] ?? []);
-            }
-        }
-
-        if (array_key_exists('is_current', $data) && $data['is_current']) {
-            $data['end_date'] = null;
-        }
-
-        return $data;
+        return ProfileSections::normalize($definition, $data);
     }
 
     // ---- Skills & categories ----------------------------------------------------

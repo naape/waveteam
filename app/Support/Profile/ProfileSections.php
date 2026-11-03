@@ -135,6 +135,25 @@ class ProfileSections
         return $rules;
     }
 
+    /** Normalises validated section data before saving (shared by the applicant and admin forms). */
+    public static function normalize(array $section, array $data): array
+    {
+        foreach ($section['fields'] as $name => $field) {
+            if ($field['type'] === 'checkbox') {
+                $data[$name] = (bool) ($data[$name] ?? false);
+            }
+            if ($field['type'] === 'checkboxes') {
+                $data[$name] = array_values($data[$name] ?? []);
+            }
+        }
+
+        if (array_key_exists('is_current', $data) && $data['is_current']) {
+            $data['end_date'] = null;
+        }
+
+        return array_intersect_key($data, $section['fields']);
+    }
+
     /** Wizard navigation (all profile pages, in order). */
     public static function steps(): array
     {
