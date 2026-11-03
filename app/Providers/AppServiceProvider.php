@@ -21,6 +21,9 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Outgoing email: use the SMTP server configured in Admin → Email servers.
+        $this->app->afterResolving('mail.manager', fn () => \App\Support\Mail\MailServerConfig::apply());
+
         // Sub-folder hosting (www.waveteam.lk/app): see SubfolderAwareHandleRequests.
         $this->app->instance(
             \Livewire\Mechanisms\HandleRequests\HandleRequests::class,

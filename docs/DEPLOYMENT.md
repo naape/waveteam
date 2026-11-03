@@ -96,7 +96,7 @@ This runs:
 
 ## 8. Email (SPF, DKIM, DMARC)
 Use a transactional provider (Brevo, Amazon SES, Postmark), or HostGator's SMTP for low volume.
-- Put its SMTP details in `.env`.
+- Enter its SMTP details in **Admin → Administration → Email servers (SMTP)**, click **Send test email**, then **Use this server**. The settings in `.env` (`MAIL_*`) are only a fallback, used while no server is active.
 - Add the provider's **SPF** and **DKIM** records for `waveteam.lk`.
 - Add a DMARC record: `_dmarc.waveteam.lk TXT "v=DMARC1; p=quarantine; rua=mailto:info@waveteam.lk"`
 
