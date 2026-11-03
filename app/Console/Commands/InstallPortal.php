@@ -78,8 +78,7 @@ class InstallPortal extends Command
         });
 
         if (app()->isProduction()) {
-            $this->components->task('Caching config, routes, views, events', fn () => $this->callSilently('optimize') === 0);
-            $this->callSilently('filament:optimize');
+            $this->call('portal:optimize');
         }
 
         $this->newLine();

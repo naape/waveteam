@@ -21,6 +21,19 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Sub-folder hosting (www.waveteam.lk/app): see SubfolderAwareHandleRequests.
+        $this->app->instance(
+            \Livewire\Mechanisms\HandleRequests\HandleRequests::class,
+            new \App\Support\Livewire\SubfolderAwareHandleRequests,
+        );
+        $this->app->booted(function () {
+            $base = \App\Support\Livewire\SubfolderAwareHandleRequests::basePath();
+            $route = app(\Livewire\Mechanisms\FrontendAssets\FrontendAssets::class)->javaScriptRoute ?? null;
+            if ($base !== '' && $route && ! config('livewire.asset_url')) {
+                config(['livewire.asset_url' => $base.'/'.ltrim($route->uri, '/')]);
+            }
+        });
+
         // SMS / WhatsApp provider. Add real adapters here (e.g. 'dialog' => DialogGateway::class).
         $this->app->bind(\App\Support\Messaging\TextMessageGateway::class, fn () => match (config('portal.channels.driver')) {
             default => new \App\Support\Messaging\LogGateway,

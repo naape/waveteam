@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             $middleware->trustProxies(at: array_map('trim', explode(',', $proxies)));
         }
 
+        $middleware->prepend(\App\Http\Middleware\CanonicalHost::class);
         $middleware->append(SecurityHeaders::class);
         $middleware->appendToGroup('web', EnsureAccountActive::class);
 

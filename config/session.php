@@ -143,7 +143,9 @@ return [
     |
     */
 
-    'path' => env('SESSION_PATH', '/'),
+    // Defaults to the folder in APP_URL (e.g. /app), so the portal's cookies
+    // are never sent to — or overwritten by — a WordPress site on the same domain.
+    'path' => env('SESSION_PATH') ?: (rtrim((string) parse_url((string) env('APP_URL', ''), PHP_URL_PATH), '/') ?: '/'),
 
     /*
     |--------------------------------------------------------------------------

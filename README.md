@@ -1,6 +1,6 @@
 # WaveTeam Recruitment & Service Management Portal
 
-Separate Laravel application, to be served at **portal.waveteam.lk**. It provides:
+Separate Laravel application, served at **https://www.waveteam.lk/app** (next to the WordPress site; see docs/DEPLOYMENT.md). It provides:
 - an Applicant portal
 - a Service Request portal for organisations
 - an Administrator portal for WaveTeam staff
@@ -8,7 +8,7 @@ Separate Laravel application, to be served at **portal.waveteam.lk**. It provide
 Docs: [`docs/`](docs). Start with `01-site-review-and-architecture.md`, then read the phase reports.
 
 ## Local deployment (MAMP, production-like)
-The portal is served by MAMP's Apache at **http://localhost:8890** (admin: `/admin`). To set it up, or to re-apply the set-up after a MAMP update, run:
+The portal is served by MAMP's Apache at **http://localhost:8890/app** (admin: `/app/admin`), laid out like the live site: a WordPress stand-in at the root, the portal in `/app`. To set it up, or to re-apply the set-up after a MAMP update, run:
 
 ```bash
 ./deploy/local-mamp.sh
@@ -24,7 +24,7 @@ The script:
 A backup of MAMP's original config is kept at `/Applications/MAMP/conf/apache/httpd.conf.waveteam-backup`.
 
 - Emails are written to `storage/logs/mail.log`, which is where you'll find the verification links.
-- **Before running tests, run `php artisan config:clear`**, then `php artisan optimize` afterwards. The tests refuse to run against the real database while the config is cached.
+- **Before running tests, run `php artisan config:clear`**, then `php artisan portal:optimize` afterwards. The tests refuse to run against the real database while the config is cached.
 - The scheduler (police clearance reminders and other jobs) runs only if you add this cron line yourself (`crontab -e`):
   `* * * * * cd /Applications/MAMP/htdocs/waveteam && /Applications/MAMP/bin/php/php8.3.30/bin/php artisan schedule:run >> /dev/null 2>&1`
 
