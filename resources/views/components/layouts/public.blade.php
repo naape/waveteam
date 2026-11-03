@@ -59,7 +59,7 @@
             </div>
         </div>
         <div class="border-t border-slate-100 py-4 text-center text-xs text-slate-400">
-            &copy; {{ date('Y') }} {{ config('portal.company.name') }}. {{ __('All rights reserved.') }}
+            @include('partials.copyright')
         </div>
     </footer>
 </body>

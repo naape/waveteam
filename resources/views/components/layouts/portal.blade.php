@@ -80,7 +80,7 @@
     <footer class="mx-auto max-w-7xl px-4 pb-10 text-xs text-slate-400 sm:px-6 lg:px-8">
         <a href="{{ route('policy', 'privacy-policy') }}" class="hover:text-slate-600">{{ __('Privacy Policy') }}</a> ·
         <a href="{{ route('policy', 'terms') }}" class="hover:text-slate-600">{{ __('Terms of Use') }}</a> ·
-        &copy; {{ date('Y') }} {{ config('portal.company.name') }}
+        @include('partials.copyright')
     </footer>
 </body>
 </html>
