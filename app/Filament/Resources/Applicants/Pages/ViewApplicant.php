@@ -22,7 +22,15 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Livewire;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Schema;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Icons\Heroicon;
@@ -67,14 +75,6 @@ class ViewApplicant extends ViewRecord
                     Notification::make()->title(__('Profile verified'))->success()->send();
                 }),
 
-            ActionGroup::make([$this->editDetailsAction($p), $this->editSkillsAction($p), $this->editPreferencesAction($p)])
-                ->label(__('Edit profile'))->icon(Heroicon::OutlinedPencilSquare)->button()->color('gray')
-                ->visible(fn () => auth()->user()->can('applicants.update')),
-
-            ActionGroup::make([$this->uploadPccAction($p), $this->removePccAction($p)])
-                ->label(__('Police clearance'))->icon(Heroicon::OutlinedShieldCheck)->button()->color('gray')
-                ->visible(fn () => auth()->user()->can('applicants.update') || auth()->user()->can('police_clearance.verify')),
-
             ActionGroup::make([
                 PasswordActions::set(fn (ApplicantProfile $r) => collect([$r->user]), fn () => auth()->user()->can('applicants.update')),
                 PasswordActions::resetLink(fn (ApplicantProfile $r) => collect([$r->user]), fn () => auth()->user()->can('applicants.update')),
@@ -102,15 +102,168 @@ class ViewApplicant extends ViewRecord
                         $review->setStatus($p, ApplicantStatus::from($data['status']), auth()->user(), $data['reason']);
                         Notification::make()->title(__('Applicant status updated'))->success()->send();
                     }),
-            ])->label(__('More'))->button()->color('gray'),
+            ])->label(__('More'))->icon(Heroicon::OutlinedEllipsisVertical)->button()->color('gray'),
         ];
     }
 
-    private function editDetailsAction(ApplicantProfile $p): Action
+    public function getTitle(): string
     {
+        return $this->record->full_name;
+    }
+
+    /**
+     * Page layout: an at-a-glance summary, then tabs. Each section has its own
+     * Edit button right where the information is shown.
+     */
+    public function infolist(Schema $schema): Schema
+    {
+        /** @var ApplicantProfile $p */
+        $p = $this->record;
+        $canPii = auth()->user()->can('applicants.view_pii');
+        $sections = collect(ApplicantResource::sectionManagers())
+            ->filter(fn ($rm) => $rm::canViewForRecord($p, static::class));
+
+        return $schema->components([
+            // ---- Summary ---------------------------------------------------------
+            Section::make()->key('summary')->columnSpanFull()->schema([
+                Grid::make(['default' => 1, 'md' => 3])->schema([
+                    TextEntry::make('contact')->hiddenLabel()->columnSpan(['md' => 1])
+                        ->state(fn () => collect([$p->user->email, $p->contact_number, $p->district?->name_en])->filter()->implode(' · '))
+                        ->icon(Heroicon::OutlinedEnvelope)->color('gray')
+                        ->helperText(fn () => __('Registered :d', ['d' => $p->created_at->format('j M Y')])),
+                    Grid::make(['default' => 2, 'sm' => 4])->columnSpan(['md' => 2])->schema([
+                        TextEntry::make('verification_status')->label(__('Verification'))->badge()
+                            ->helperText(fn () => $p->verified_at ? __(':who, :d', ['who' => $p->verifier?->name, 'd' => $p->verified_at->format('j M Y')]) : null),
+                        TextEntry::make('pcc_summary')->label(__('Police clearance'))->badge()
+                            ->state(fn () => $p->policeClearanceStatus())
+                            ->helperText(fn () => ($d = $p->currentPoliceClearance?->renewalDate()) ? __('Renewal :d', ['d' => $d->format('j M Y')]) : null),
+                        TextEntry::make('availability_status')->label(__('Availability'))->badge()
+                            ->helperText(fn () => $p->available_from ? __('from :d', ['d' => $p->available_from->format('j M Y')]) : null),
+                        TextEntry::make('applicant_status')->label(__('Status'))->badge(),
+                    ]),
+                ]),
+                ViewEntry::make('profile_completion')->label(__('Profile completion'))->view('filament.infolists.completion'),
+            ]),
+
+            Tabs::make()->key('tabs')->columnSpanFull()->persistTabInQueryString()->tabs([
+                // ---- Personal details ------------------------------------------
+                Tab::make(__('Personal details'))->icon(Heroicon::OutlinedUser)->schema([
+                    Section::make(__('Personal details'))->key('personal')
+                        ->headerActions([$this->editDetailsAction()])
+                        ->columns(['default' => 1, 'md' => 3])->schema([
+                            TextEntry::make('full_name')->label(__('Full name')),
+                            TextEntry::make('nic')->label(__('NIC'))
+                                ->state(fn () => $canPii ? $p->nic_number : $p->maskedNic())
+                                ->helperText($canPii ? null : __('Masked — requires “view PII” permission'))
+                                ->placeholder('—')->copyable($canPii),
+                            TextEntry::make('passport')->label(__('Passport'))
+                                ->state(fn () => $p->passport_number ? ($canPii ? $p->passport_number : '••••'.substr($p->passport_number, -3)) : null)
+                                ->placeholder('—'),
+                            TextEntry::make('date_of_birth')->label(__('Date of birth'))->date('j M Y')
+                                ->helperText(fn () => $p->date_of_birth ? __(':n years', ['n' => $p->date_of_birth->age]) : null)->placeholder('—'),
+                            TextEntry::make('gender')->formatStateUsing(fn (?string $state) => $state ? ucfirst(str_replace('_', ' ', $state)) : null)->placeholder('—'),
+                            TextEntry::make('district.name_en')->label(__('District'))->placeholder('—'),
+                            TextEntry::make('user.email')->label(__('Email'))->copyable(),
+                            TextEntry::make('contact_number')->label(__('Mobile'))->copyable()->placeholder('—'),
+                            TextEntry::make('whatsapp_number')->label(__('WhatsApp'))->placeholder('—'),
+                            TextEntry::make('permanent_address')->label(__('Permanent address'))->placeholder('—'),
+                            TextEntry::make('current_address')->label(__('Current address'))->placeholder('—'),
+                            TextEntry::make('emergency')->label(__('Emergency contact'))
+                                ->state(fn () => trim(($p->emergency_contact_name ?? '').($p->emergency_contact_number ? ' · '.$p->emergency_contact_number : ''), ' ·') ?: null)
+                                ->placeholder('—'),
+                        ]),
+                ]),
+
+                // ---- Skills & preferences --------------------------------------
+                Tab::make(__('Skills & preferences'))->icon(Heroicon::OutlinedWrenchScrewdriver)->schema([
+                    Section::make(__('Skills & job categories'))->key('skills')
+                        ->headerActions([$this->editSkillsAction()])
+                        ->schema([
+                            Grid::make(['default' => 1, 'md' => 3])->schema([
+                                TextEntry::make('jobCategories.name')->label(__('Job categories'))->badge()->columnSpan(['md' => 2])->placeholder(__('None chosen')),
+                                TextEntry::make('total_experience_years')->label(__('Total experience'))
+                                    ->formatStateUsing(fn ($state) => __(':n years', ['n' => rtrim(rtrim(number_format((float) $state, 1), '0'), '.')])),
+                            ]),
+                            RepeatableEntry::make('skills')->label(__('Skills'))->columns(3)->schema([
+                                TextEntry::make('name')->hiddenLabel()->weight('medium'),
+                                TextEntry::make('pivot.years')->hiddenLabel()->formatStateUsing(fn ($state) => __(':n yrs', ['n' => rtrim(rtrim((string) $state, '0'), '.') ?: '0'])),
+                                TextEntry::make('pivot.level')->hiddenLabel()->badge()->color('gray')->formatStateUsing(fn ($state) => ucfirst((string) $state)),
+                            ])->placeholder(__('No skills added')),
+                        ]),
+                    Section::make(__('Work preferences'))->key('preferences')
+                        ->headerActions([$this->editPreferencesAction()])
+                        ->columns(['default' => 1, 'md' => 3])->schema([
+                            TextEntry::make('preferredDistricts.name_en')->label(__('Willing to work in'))->badge()->color('gray')->columnSpan(['md' => 2])->placeholder(__('Not chosen')),
+                            TextEntry::make('availability_status')->label(__('Availability'))->badge()
+                                ->helperText(fn () => $p->available_from ? __('from :d', ['d' => $p->available_from->format('j M Y')]) : null),
+                        ]),
+                ]),
+
+                // ---- Qualifications (editable tables) --------------------------
+                Tab::make(__('Qualifications'))->icon(Heroicon::OutlinedAcademicCap)
+                    ->badge(fn () => $p->educations->count() + $p->certifications->count() ?: null)
+                    ->schema($sections->map(fn ($rm) => Livewire::make($rm, ['ownerRecord' => $p, 'pageClass' => static::class])
+                        ->key('rm-'.class_basename($rm)))->values()->all()),
+
+                // ---- Documents ---------------------------------------------------
+                Tab::make(__('Documents'))->icon(Heroicon::OutlinedFolder)->schema([
+                    RepeatableEntry::make('documents')->hiddenLabel()->columns(['default' => 2, 'md' => 5])
+                        ->state(fn () => $p->documents()->with('file')->orderByDesc('is_current')->latest()->get())
+                        ->schema([
+                            TextEntry::make('document_type')->hiddenLabel()->badge()->color('gray'),
+                            TextEntry::make('title')->hiddenLabel()->state(fn ($record) => $record->title ?: $record->file?->original_name),
+                            TextEntry::make('version')->hiddenLabel()->prefix('v')->suffix(fn ($record) => $record->is_current ? '' : ' ('.__('old').')'),
+                            TextEntry::make('status')->hiddenLabel()->badge(),
+                            TextEntry::make('open')->hiddenLabel()->state(__('Open'))->icon(Heroicon::OutlinedArrowTopRightOnSquare)
+                                ->color('primary')
+                                ->url(fn ($record) => auth()->user()->can('view', $record) ? route('documents.file', $record) : null, shouldOpenInNewTab: true)
+                                ->visible(fn ($record) => auth()->user()->can('view', $record)),
+                        ])->placeholder(__('No documents uploaded')),
+                ]),
+
+                // ---- Police clearance --------------------------------------------
+                Tab::make(__('Police clearance'))->icon(Heroicon::OutlinedShieldCheck)->schema([
+                    Section::make(__('Police clearance'))->key('pcc')
+                        ->headerActions([$this->uploadPccAction(), $this->removePccAction()])
+                        ->schema([
+                            TextEntry::make('pcc_status')->label(__('Current status'))->badge()->state(fn () => $p->policeClearanceStatus())
+                                ->helperText(fn () => ($d = $p->currentPoliceClearance?->renewalDate()) ? __('Renewal due :d', ['d' => $d->format('j M Y')]) : null),
+                            RepeatableEntry::make('policeClearanceRecords')->label(__('History'))->columns(['default' => 2, 'md' => 5])->schema([
+                                TextEntry::make('issue_date')->label(__('Issued'))->date('j M Y'),
+                                TextEntry::make('uploaded_at')->label(__('Uploaded'))->date('j M Y'),
+                                TextEntry::make('status')->label(__('Status'))->badge()->state(fn ($record) => $record->displayStatus()),
+                                TextEntry::make('valid_until')->label(__('Valid until'))->state(fn ($record) => $record->renewalDate())->date('j M Y')->placeholder('—'),
+                                TextEntry::make('superseded_at')->label(__('Replaced / removed'))
+                                    ->state(fn ($record) => $record->removed_at ? __('Removed :d', ['d' => $record->removed_at->format('j M Y')]) : $record->superseded_at?->format('j M Y'))
+                                    ->color(fn ($record) => $record->removed_at ? 'danger' : null)
+                                    ->helperText(fn ($record) => $record->removal_reason)
+                                    ->placeholder('—'),
+                            ])->placeholder(__('No certificates uploaded')),
+                        ]),
+                ]),
+
+                // ---- Applications ----------------------------------------------
+                Tab::make(__('Applications'))->icon(Heroicon::OutlinedClipboardDocumentCheck)
+                    ->badge(fn () => $p->jobApplications->count() ?: null)
+                    ->schema([
+                        RepeatableEntry::make('jobApplications')->hiddenLabel()->columns(3)->schema([
+                            TextEntry::make('vacancy.title')->hiddenLabel()->weight('medium'),
+                            TextEntry::make('submitted_at')->hiddenLabel()->date('j M Y'),
+                            TextEntry::make('status')->hiddenLabel()->badge(),
+                        ])->placeholder(__('No applications')),
+                    ]),
+            ]),
+        ]);
+    }
+
+    public function editDetailsAction(): Action
+    {
+        /** @var ApplicantProfile $p */
+        $p = $this->record;
         $canPii = auth()->user()->can('applicants.view_pii');
 
-        return Action::make('editDetails')->label(__('Personal details'))->icon(Heroicon::OutlinedUser)
+        return Action::make('editDetails')->label(__('Edit'))->icon(Heroicon::OutlinedPencilSquare)->link()
+            ->modalHeading(__('Edit personal details'))
             ->visible(fn () => auth()->user()->can('applicants.update'))
             ->modalWidth('3xl')
             ->fillForm(fn () => [
@@ -171,11 +324,13 @@ class ViewApplicant extends ViewRecord
             });
     }
 
-    private function uploadPccAction(ApplicantProfile $p): Action
+    public function uploadPccAction(): Action
     {
+        /** @var ApplicantProfile $p */
+        $p = $this->record;
         $canVerify = auth()->user()->can('police_clearance.verify');
 
-        return Action::make('uploadPcc')->label(__('Upload certificate'))->icon(Heroicon::OutlinedArrowUpTray)
+        return Action::make('uploadPcc')->label(__('Upload certificate'))->icon(Heroicon::OutlinedArrowUpTray)->size('sm')
             ->visible(fn () => auth()->user()->can('applicants.update') || $canVerify)
             ->modalHeading(__('Upload a police clearance certificate'))
             ->modalDescription(__('Uploads on the applicant’s behalf (e.g. a certificate handed in at the office). It is not valid until approved.'))
@@ -213,8 +368,10 @@ class ViewApplicant extends ViewRecord
             });
     }
 
-    private function removePccAction(ApplicantProfile $p): Action
+    public function removePccAction(): Action
     {
+        /** @var ApplicantProfile $p */
+        $p = $this->record;
         $options = fn () => $p->policeClearanceRecords()->whereNull('removed_at')->get()->mapWithKeys(fn ($r) => [
             $r->id => __('Issued :i · uploaded :u · :s', [
                 'i' => $r->issue_date->format('j M Y'),
@@ -223,7 +380,7 @@ class ViewApplicant extends ViewRecord
             ]).((int) $p->current_police_clearance_id === (int) $r->id ? ' — '.__('IN FORCE') : ''),
         ]);
 
-        return Action::make('removePcc')->label(__('Remove a certificate'))->icon(Heroicon::OutlinedNoSymbol)->color('danger')
+        return Action::make('removePcc')->label(__('Remove'))->icon(Heroicon::OutlinedNoSymbol)->color('danger')->outlined()->size('sm')
             ->visible(fn () => auth()->user()->can('police_clearance.verify') && $p->policeClearanceRecords()->whereNull('removed_at')->exists())
             ->modalHeading(__('Remove a police clearance certificate'))
             ->modalDescription(__('Use this for a wrong or invalid upload. The certificate stops counting immediately (if it was in force, the applicant will show as having no valid clearance), but it is kept in the history with your reason — it is not deleted.'))
@@ -240,14 +397,16 @@ class ViewApplicant extends ViewRecord
             });
     }
 
-    private function editSkillsAction(ApplicantProfile $p): Action
+    public function editSkillsAction(): Action
     {
+        /** @var ApplicantProfile $p */
+        $p = $this->record;
         $skillOptions = fn () => \App\Models\JobCategory::query()->orderBy('sort')
             ->with(['skills' => fn ($q) => $q->where('is_active', true)->orderBy('name')])->get()
             ->filter(fn ($c) => $c->skills->isNotEmpty())
             ->mapWithKeys(fn ($c) => [$c->name => $c->skills->pluck('name', 'id')->all()])->all();
 
-        return Action::make('editSkills')->label(__('Skills & job categories'))->icon(Heroicon::OutlinedWrenchScrewdriver)
+        return Action::make('editSkills')->label(__('Edit'))->icon(Heroicon::OutlinedPencilSquare)->link()
             ->visible(fn () => auth()->user()->can('applicants.update'))
             ->modalHeading(__('Skills & job categories'))
             ->modalWidth('3xl')
@@ -278,13 +437,15 @@ class ViewApplicant extends ViewRecord
             });
     }
 
-    private function editPreferencesAction(ApplicantProfile $p): Action
+    public function editPreferencesAction(): Action
     {
+        /** @var ApplicantProfile $p */
+        $p = $this->record;
         $engaged = fn () => $p->availability_status === \App\Enums\AvailabilityStatus::Engaged;
         $statuses = collect([\App\Enums\AvailabilityStatus::Available, \App\Enums\AvailabilityStatus::AvailableFrom, \App\Enums\AvailabilityStatus::Unavailable])
             ->mapWithKeys(fn ($s) => [$s->value => $s->getLabel()])->all();
 
-        return Action::make('editPreferences')->label(__('Work preferences'))->icon(Heroicon::OutlinedMapPin)
+        return Action::make('editPreferences')->label(__('Edit'))->icon(Heroicon::OutlinedPencilSquare)->link()
             ->visible(fn () => auth()->user()->can('applicants.update'))
             ->modalHeading(__('Work preferences & availability'))
             ->fillForm(fn () => [

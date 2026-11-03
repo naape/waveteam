@@ -52,7 +52,7 @@
     "src": "node_modules/@fontsource-variable/noto-sans-tamil/files/noto-sans-tamil-tamil-wght-normal.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-B2egXZdt.css",
+    "file": "assets/app-Dt6WOXMt.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -61,7 +61,7 @@
     ]
   },
   "resources/css/filament/admin/theme.css": {
-    "file": "assets/theme-ByFpAe30.css",
+    "file": "assets/theme-h90Ceo0A.css",
     "src": "resources/css/filament/admin/theme.css",
     "isEntry": true,
     "name": "theme",

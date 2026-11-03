@@ -122,21 +122,23 @@ abstract class ProfileSectionRelationManager extends RelationManager
         $actions = app(ApplicantRecordsActions::class);
         $section = static::$section;
 
+        $firstLabel = collect($definition['fields'])->first()['label'] ?? __('Details');
+
         return $table
+            ->heading($definition['title'])
             ->columns([
-                TextColumn::make('summary')->label($definition['title'])->wrap()
+                TextColumn::make('summary')->label($firstLabel)->wrap()->weight('medium')
                     ->state(fn (Model $record) => ($definition['summary'])($record)[0] ?? '')
                     ->description(fn (Model $record) => ($definition['summary'])($record)[1] ?? null),
-                TextColumn::make('updated_at')->label(__('Last changed'))->since()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->headerActions([
-                CreateAction::make()->label($definition['add_label'])->modalHeading($definition['add_label'])
+                CreateAction::make()->label($definition['add_label'])->modalHeading($definition['add_label'])->icon(Heroicon::OutlinedPlus)->outlined()->size('sm')
                     ->using(fn (array $data) => $actions->saveEntry($this->getOwnerRecord(), $section, null, $data, auth()->user())),
             ])
             ->recordActions([
-                EditAction::make()
+                EditAction::make()->iconButton()->tooltip(__('Edit'))
                     ->using(fn (Model $record, array $data) => $actions->saveEntry($this->getOwnerRecord(), $section, $record, $data, auth()->user())),
-                Action::make('remove')->label(__('Remove'))->icon(Heroicon::OutlinedTrash)->color('danger')
+                Action::make('remove')->label(__('Remove'))->icon(Heroicon::OutlinedTrash)->color('danger')->iconButton()->tooltip(__('Remove'))
                     ->visible(fn () => ! $this->isReadOnly())
                     ->requiresConfirmation()
                     ->modalHeading(__('Remove this entry?'))
@@ -146,6 +148,8 @@ abstract class ProfileSectionRelationManager extends RelationManager
                     }),
             ])
             ->emptyStateHeading(__('Nothing added yet'))
+            ->emptyStateDescription(null)
+            ->emptyStateIcon($definition['icon'] ?? Heroicon::OutlinedDocumentText)
             ->paginated(false);
     }
 }
