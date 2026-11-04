@@ -108,9 +108,11 @@ class ViewServiceRequest extends ViewRecord
 
             ActionGroup::make([
                 Action::make('status')->label(__('Change status'))->icon(Heroicon::OutlinedArrowPath)
-                    ->visible(fn () => $this->can('service_requests.manage') && $r->status->allowedNext() !== [])
+                    ->visible(fn () => $this->can('service_requests.manage') && StaffRequestActions::staffNextStatuses($r) !== [])
                     ->schema([
-                        Select::make('status')->required()->options(collect($r->status->allowedNext())->mapWithKeys(fn ($s) => [$s->value => $s->getLabel()])),
+                        Select::make('status')->required()
+                            ->helperText($r->status === ServiceRequestStatus::QuotationSent ? __('Waiting for the client to accept or reject the quotation in their portal. The request becomes “Approved” when they accept.') : null)
+                            ->options(collect(StaffRequestActions::staffNextStatuses($r))->mapWithKeys(fn ($s) => [$s->value => $s->getLabel()])),
                         Textarea::make('note')->label(__('Note (required when cancelling; shown in history)'))->maxLength(1000),
                     ])
                     ->action(function (array $data) use ($r) {

@@ -27,10 +27,21 @@ class StaffRequestActions
         private readonly DocumentVault $vault,
     ) {}
 
+    /** Statuses staff can move a request to by hand (Approved comes only from the client). */
+    public static function staffNextStatuses(ServiceRequest $request): array
+    {
+        return array_values(array_filter($request->status->allowedNext(), fn ($s) => $s !== ServiceRequestStatus::Approved));
+    }
+
     public function changeStatus(ServiceRequest $request, ServiceRequestStatus $to, User $by, ?string $note = null): void
     {
         if (! in_array($to, $request->status->allowedNext(), true)) {
             throw ValidationException::withMessages(['status' => __('A request cannot move from :from to :to.', ['from' => $request->status->getLabel(), 'to' => $to->getLabel()])]);
+        }
+
+        if ($to === ServiceRequestStatus::Approved) {
+            // Only the client approves a request: by accepting the quotation in their portal.
+            throw ValidationException::withMessages(['status' => __('A request is approved only when the client accepts the quotation in their portal.')]);
         }
 
         if ($to === ServiceRequestStatus::Cancelled && blank($note)) {
