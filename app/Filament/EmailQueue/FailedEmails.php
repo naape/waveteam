@@ -14,6 +14,8 @@ use Illuminate\Support\HtmlString;
 
 class FailedEmails extends TableWidget
 {
+    protected static bool $isLazy = false;
+
     protected int|string|array $columnSpan = 'full';
 
     protected static ?string $heading = 'Failed';

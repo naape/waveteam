@@ -123,6 +123,16 @@ class EmailQueueTest extends TestCase
         $this->assertStringContainsString('portal-heartbeat', Artisan::output());
     }
 
+    public function test_failure_reason_is_part_of_the_page_itself(): void
+    {
+        // Not a follow-up request: a host firewall or an expired session must not
+        // be able to leave the page showing a failed count with no explanation.
+        $this->failEmail('Expected response code 250 but got code 550, with message 550 No Such User Here');
+        $this->actingAs($this->makeStaff('Super Admin'));
+
+        $this->get(EmailQueue::getUrl())->assertOk()->assertSee('No Such User Here');
+    }
+
     public function test_unreadable_job_does_not_break_the_page(): void
     {
         $info = QueuedEmail::describe('{"data":{"command":"not serialized"}}');
