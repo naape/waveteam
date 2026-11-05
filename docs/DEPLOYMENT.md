@@ -94,6 +94,8 @@ This runs:
 - the vacancy and quotation expiry jobs
 - the email queue
 
+Check it in **Admin → Administration → Email servers (SMTP) → Email queue**: "Automatic sending" should say **Running**. Most portal emails wait in the queue until this job runs. Failed emails can be retried on the same page.
+
 ## 8. Email (SPF, DKIM, DMARC)
 Use a transactional provider (Brevo, Amazon SES, Postmark), or HostGator's SMTP for low volume.
 - Enter its SMTP details in **Admin → Administration → Email servers (SMTP)**, click **Send test email**, then **Use this server**. The settings in `.env` (`MAIL_*`) are only a fallback, used while no server is active.

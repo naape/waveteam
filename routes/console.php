@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Mail\QueuedEmail;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -16,6 +17,9 @@ $tz = 'Asia/Colombo';
 // Shared hosting has no long-running worker: drain the queue every minute.
 Schedule::command('queue:work --stop-when-empty --max-time=50 --tries=3')
     ->everyMinute()->withoutOverlapping()->runInBackground();
+
+// Lets Admin → Email queue show whether cron is running.
+Schedule::call([QueuedEmail::class, 'beat'])->name('portal-heartbeat')->everyMinute();
 
 // Police clearance renewal reminders (30/14/7 days, configurable) + expiry notices.
 Schedule::command('pcc:send-reminders')->dailyAt('06:00')->timezone($tz)->withoutOverlapping()->onOneServer();
