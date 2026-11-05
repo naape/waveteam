@@ -3,11 +3,12 @@
 namespace App\Actions\Admin;
 
 use App\Models\FailedQueueJob;
+use App\Models\QueuedJob;
 use App\Support\Audit;
 use Illuminate\Support\Facades\Artisan;
 
 /**
- * Staff actions on emails that could not be sent.
+ * Staff actions on emails that are waiting or could not be sent.
  */
 class EmailQueueActions
 {
@@ -35,8 +36,33 @@ class EmailQueueActions
         Audit::log('email_queue.deleted', meta: $meta);
     }
 
-    private function meta(FailedQueueJob $job): array
+    /**
+     * Stops a waiting email being sent. Returns false if the queue worker had
+     * already picked it up, since it can no longer be stopped.
+     */
+    public function deleteWaiting(QueuedJob $job): bool
     {
-        return ['uuid' => $job->uuid, 'to' => $job->emailInfo()['to'], 'subject' => $job->emailInfo()['subject']];
+        $meta = $this->meta($job);
+
+        if (! QueuedJob::query()->whereKey($job->getKey())->whereNull('reserved_at')->delete()) {
+            return false;
+        }
+
+        Audit::log('email_queue.waiting_deleted', meta: $meta);
+
+        return true;
+    }
+
+    public function deleteAllWaiting(): int
+    {
+        $count = QueuedJob::query()->emails()->whereNull('reserved_at')->delete();
+        Audit::log('email_queue.waiting_deleted_all', meta: ['count' => $count]);
+
+        return $count;
+    }
+
+    private function meta(FailedQueueJob|QueuedJob $job): array
+    {
+        return ['uuid' => $job->uuid ?? null, 'to' => $job->emailInfo()['to'], 'subject' => $job->emailInfo()['subject']];
     }
 }

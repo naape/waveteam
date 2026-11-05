@@ -133,6 +133,48 @@ class EmailQueueTest extends TestCase
         $this->get(EmailQueue::getUrl())->assertOk()->assertSee('No Such User Here');
     }
 
+    public function test_waiting_email_can_be_deleted_without_touching_portal_notices(): void
+    {
+        $gone = $this->queueEmail('gone@example.com');
+        $kept = $this->queueEmail('kept@example.com');
+        $this->actingAs($this->makeStaff('Super Admin'));
+
+        Livewire::test(WaitingEmails::class)->callTableAction('delete', $gone);
+
+        $this->assertSame([$kept->id], QueuedJob::query()->emails()->pluck('id')->all());
+        $this->assertSame(3, QueuedJob::count()); // the other email + both in-portal notices
+        $log = AuditLog::where('action', 'email_queue.waiting_deleted')->firstOrFail();
+        $this->assertSame('gone@example.com', $log->meta['to']);
+    }
+
+    public function test_delete_all_leaves_emails_being_sent_and_portal_notices(): void
+    {
+        $this->queueEmail('one@example.com');
+        $this->queueEmail('two@example.com');
+        $sending = $this->queueEmail('sending@example.com');
+        DB::table('jobs')->where('id', $sending->id)->update(['reserved_at' => now()->timestamp]);
+        $this->actingAs($this->makeStaff('Super Admin'));
+
+        Livewire::test(WaitingEmails::class)
+            ->assertTableActionHidden('delete', $sending->fresh())
+            ->callAction(\Filament\Actions\Testing\TestAction::make('deleteAll')->table());
+
+        $this->assertSame([$sending->id], QueuedJob::query()->emails()->pluck('id')->all());
+        $this->assertSame(4, QueuedJob::count());
+        $this->assertSame(2, AuditLog::where('action', 'email_queue.waiting_deleted_all')->firstOrFail()->meta['count']);
+    }
+
+    public function test_email_picked_up_by_the_worker_cannot_be_deleted(): void
+    {
+        $job = $this->queueEmail();
+        $stale = QueuedJob::findOrFail($job->id);
+        DB::table('jobs')->where('id', $job->id)->update(['reserved_at' => now()->timestamp]);
+
+        $this->assertFalse(app(\App\Actions\Admin\EmailQueueActions::class)->deleteWaiting($stale));
+        $this->assertTrue(QueuedJob::whereKey($job->id)->exists());
+        $this->assertFalse(AuditLog::where('action', 'email_queue.waiting_deleted')->exists());
+    }
+
     public function test_unreadable_job_does_not_break_the_page(): void
     {
         $info = QueuedEmail::describe('{"data":{"command":"not serialized"}}');
