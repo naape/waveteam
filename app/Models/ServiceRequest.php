@@ -37,7 +37,7 @@ class ServiceRequest extends Model
 
     public function submitter(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'submitted_by');
+        return $this->belongsTo(User::class, 'submitted_by')->withTrashed();
     }
 
     public function serviceCategory(): BelongsTo
@@ -52,7 +52,7 @@ class ServiceRequest extends Model
 
     public function manager(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'assigned_manager_id');
+        return $this->belongsTo(User::class, 'assigned_manager_id')->withTrashed();
     }
 
     public function skills(): BelongsToMany

@@ -34,7 +34,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // Reports
         'reports.view', 'reports.export',
         // Administration
-        'notifications.manage', 'staff.manage', 'roles.manage', 'audit_logs.view', 'settings.manage',
+        'notifications.manage', 'staff.manage', 'staff.delete', 'roles.manage', 'audit_logs.view', 'settings.manage',
     ];
 
     public const ROLES = [

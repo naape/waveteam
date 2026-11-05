@@ -31,6 +31,6 @@ class Interview extends Model
 
     public function scheduler(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'scheduled_by');
+        return $this->belongsTo(User::class, 'scheduled_by')->withTrashed();
     }
 }

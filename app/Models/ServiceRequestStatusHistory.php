@@ -30,6 +30,6 @@ class ServiceRequestStatusHistory extends Model
 
     public function changer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'changed_by');
+        return $this->belongsTo(User::class, 'changed_by')->withTrashed();
     }
 }

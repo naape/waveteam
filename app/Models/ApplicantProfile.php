@@ -84,7 +84,7 @@ class ApplicantProfile extends Model
 
     public function verifier(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'verified_by');
+        return $this->belongsTo(User::class, 'verified_by')->withTrashed();
     }
 
     public function educations(): HasMany

@@ -41,6 +41,6 @@ class WorkforceAssignment extends Model
 
     public function assigner(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'assigned_by');
+        return $this->belongsTo(User::class, 'assigned_by')->withTrashed();
     }
 }

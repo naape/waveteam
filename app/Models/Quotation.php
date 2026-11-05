@@ -46,11 +46,11 @@ class Quotation extends Model
 
     public function preparer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'prepared_by');
+        return $this->belongsTo(User::class, 'prepared_by')->withTrashed();
     }
 
     public function approver(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(User::class, 'approved_by')->withTrashed();
     }
 }
